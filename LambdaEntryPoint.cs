@@ -1,62 +1,58 @@
+using Amazon.Lambda.AspNetCoreServer;
 using Amazon.Lambda.Core;
-using Amazon.Lambda.APIGatewayEvents;
-using System.Text.Json;
+using Amazon.Lambda.Serialization.SystemTextJson;
 
-[assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
+[assembly: LambdaSerializer(typeof(DefaultLambdaJsonSerializer))]
 
 namespace FidelityTesting;
 
-public class LambdaEntryPoint
+/// <summary>
+/// Lambda entry point that runs your actual ASP.NET Core application
+/// with HealthController and WeatherForecastController
+/// </summary>
+public class LambdaEntryPoint : APIGatewayProxyFunction
 {
-    public APIGatewayProxyResponse FunctionHandlerAsync(APIGatewayProxyRequest request, ILambdaContext context)
+    /// <summary>
+    /// Configures ASP.NET Core to run in Lambda
+    /// </summary>
+    protected override void Init(IWebHostBuilder builder)
     {
-        try
-        {
-            // Handle health endpoint
-            if (request.Path?.Contains("/health") == true)
-            {
-                var healthResponse = new
-                {
-                    Status = "Healthy",
-                    Timestamp = DateTime.UtcNow,
-                    Message = "Lambda is working!",
-                    Path = request.Path,
-                    Method = request.HttpMethod
-                };
+        builder
+            .UseContentRoot(Directory.GetCurrentDirectory())
+            .UseStartup<Startup>()
+            .UseLambdaServer();
+    }
+}
 
-                return new APIGatewayProxyResponse
-                {
-                    StatusCode = 200,
-                    Body = JsonSerializer.Serialize(healthResponse),
-                    Headers = new Dictionary<string, string>
-                    {
-                        { "Content-Type", "application/json" },
-                        { "Access-Control-Allow-Origin", "*" }
-                    }
-                };
-            }
+/// <summary>
+/// ASP.NET Core startup configuration for Lambda
+/// </summary>
+public class Startup
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        // Add your controllers (HealthController, WeatherForecastController)
+        services.AddControllers();
+        
+        // Add API documentation
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen();
+    }
 
-            // Default response
-            return new APIGatewayProxyResponse
-            {
-                StatusCode = 200,
-                Body = "Hello from Lambda! Path: " + request.Path,
-                Headers = new Dictionary<string, string>
-                {
-                    { "Content-Type", "text/plain" },
-                    { "Access-Control-Allow-Origin", "*" }
-                }
-            };
-        }
-        catch (Exception ex)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        // Enable Swagger
+        app.UseSwagger();
+        app.UseSwaggerUI();
+        
+        // Configure routing
+        app.UseRouting();
+        app.UseAuthorization();
+        
+        // Map your controllers
+        app.UseEndpoints(endpoints =>
         {
-            context.Logger.LogLine($"Error: {ex}");
-            return new APIGatewayProxyResponse
-            {
-                StatusCode = 500,
-                Body = $"Error: {ex.Message}",
-                Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
-            };
-        }
+            endpoints.MapControllers();
+        });
     }
 }
