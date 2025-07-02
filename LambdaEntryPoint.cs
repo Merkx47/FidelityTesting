@@ -12,7 +12,7 @@ public class LambdaEntryPoint : APIGatewayProxyFunction
     {
         builder
             .UseContentRoot(Directory.GetCurrentDirectory())
-            .UseStartup<Program>()
+            .UseStartup<Startup>()  // Changed from Program to Startup
             .UseLambdaServer();
     }
 }
