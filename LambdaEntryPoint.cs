@@ -1,5 +1,6 @@
 using Amazon.Lambda.Core;
 using Amazon.Lambda.APIGatewayEvents;
+using System.Text.Json;
 
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
 
@@ -11,23 +12,35 @@ public class LambdaEntryPoint
     {
         try
         {
-            // Simple debug without complex JSON serialization
-            var debugText = $@"
-Path: '{request.Path}'
-RawPath: '{request.RawPath}'
-Resource: '{request.Resource}'
-HttpMethod: '{request.HttpMethod}'
-RequestContext.Path: '{request.RequestContext?.Path}'
-PathParameters: {(request.PathParameters?.Count ?? 0)} items
-Headers: {(request.Headers?.Count ?? 0)} items
-";
+            // Handle health endpoint
+            if (request.Path?.Contains("/health") == true)
+            {
+                var healthResponse = new
+                {
+                    Status = "Healthy",
+                    Timestamp = DateTime.UtcNow,
+                    Message = "Lambda is working!",
+                    Path = request.Path,
+                    Method = request.HttpMethod
+                };
 
-            context.Logger.LogLine($"Request Debug: {debugText}");
+                return new APIGatewayProxyResponse
+                {
+                    StatusCode = 200,
+                    Body = JsonSerializer.Serialize(healthResponse),
+                    Headers = new Dictionary<string, string>
+                    {
+                        { "Content-Type", "application/json" },
+                        { "Access-Control-Allow-Origin", "*" }
+                    }
+                };
+            }
 
+            // Default response
             return new APIGatewayProxyResponse
             {
                 StatusCode = 200,
-                Body = debugText,
+                Body = "Hello from Lambda! Path: " + request.Path,
                 Headers = new Dictionary<string, string>
                 {
                     { "Content-Type", "text/plain" },
@@ -37,6 +50,7 @@ Headers: {(request.Headers?.Count ?? 0)} items
         }
         catch (Exception ex)
         {
+            context.Logger.LogLine($"Error: {ex}");
             return new APIGatewayProxyResponse
             {
                 StatusCode = 500,
