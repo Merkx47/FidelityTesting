@@ -12,40 +12,28 @@ public class LambdaEntryPoint
     {
         try
         {
-            context.Logger.LogLine($"Request: {JsonSerializer.Serialize(request)}");
+            // Log the ENTIRE request for debugging
+            context.Logger.LogLine($"Full Request: {JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true })}");
             
-            // Handle health endpoint
-            if (request.Path?.Contains("/health") == true)
+            var debugInfo = new
             {
-                var healthResponse = new
-                {
-                    Status = "Healthy",
-                    Timestamp = DateTime.UtcNow,
-                    Message = "Lambda is working!",
-                    Path = request.Path,
-                    Method = request.HttpMethod
-                };
+                Path = request.Path,
+                RawPath = request.RawPath,
+                Resource = request.Resource,
+                HttpMethod = request.HttpMethod,
+                PathParameters = request.PathParameters,
+                QueryStringParameters = request.QueryStringParameters,
+                RequestContext = request.RequestContext?.Path,
+                Headers = request.Headers
+            };
 
-                return new APIGatewayProxyResponse
-                {
-                    StatusCode = 200,
-                    Body = JsonSerializer.Serialize(healthResponse),
-                    Headers = new Dictionary<string, string>
-                    {
-                        { "Content-Type", "application/json" },
-                        { "Access-Control-Allow-Origin", "*" }
-                    }
-                };
-            }
-
-            // Default response
             return new APIGatewayProxyResponse
             {
                 StatusCode = 200,
-                Body = "Hello from Lambda! Path: " + request.Path,
+                Body = JsonSerializer.Serialize(debugInfo, new JsonSerializerOptions { WriteIndented = true }),
                 Headers = new Dictionary<string, string>
                 {
-                    { "Content-Type", "text/plain" },
+                    { "Content-Type", "application/json" },
                     { "Access-Control-Allow-Origin", "*" }
                 }
             };
