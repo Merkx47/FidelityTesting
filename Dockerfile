@@ -1,28 +1,24 @@
-# Use the official AWS Lambda .NET 8 base image
-# This includes the Lambda runtime and .NET 8
-FROM public.ecr.aws/lambda/dotnet:8
+# Stage 1: Build stage using .NET SDK
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
 
-# Set the working directory to the Lambda task root
-WORKDIR ${LAMBDA_TASK_ROOT}
-
-# Copy the project file and restore dependencies
-# This layer is cached if dependencies don't change
+# Copy project file 
 COPY *.csproj ./
-RUN dotnet restore
 
-# Copy the entire project source code
+# Copy source code
 COPY . ./
 
-# Build and publish the application in Release mode
-RUN dotnet publish -c Release -o out
+# Publish for Linux (will automatically restore for correct platform)
+RUN dotnet publish -c Release -o /app/publish --runtime linux-x64 --self-contained false
 
-# Copy the published application to the Lambda task root
-RUN cp -r /var/task/out/* ${LAMBDA_TASK_ROOT}/
+# Stage 2: Runtime stage using AWS Lambda base image
+FROM public.ecr.aws/lambda/dotnet:8
+
+# Copy the published application from build stage
+COPY --from=build /app/publish ${LAMBDA_TASK_ROOT}/
 
 # Set the Lambda handler
-# Format: AssemblyName::Namespace.ClassName::MethodName
 CMD [ "FidelityTesting::FidelityTesting.LambdaEntryPoint::FunctionHandlerAsync" ]
-
 
 
 
