@@ -1,6 +1,5 @@
 using Amazon.Lambda.Core;
 using Amazon.Lambda.APIGatewayEvents;
-using System.Text.Json;
 
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
 
@@ -12,35 +11,32 @@ public class LambdaEntryPoint
     {
         try
         {
-            // Log the ENTIRE request for debugging
-            context.Logger.LogLine($"Full Request: {JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true })}");
-            
-            var debugInfo = new
-            {
-                Path = request.Path,
-                RawPath = request.RawPath,
-                Resource = request.Resource,
-                HttpMethod = request.HttpMethod,
-                PathParameters = request.PathParameters,
-                QueryStringParameters = request.QueryStringParameters,
-                RequestContext = request.RequestContext?.Path,
-                Headers = request.Headers
-            };
+            // Simple debug without complex JSON serialization
+            var debugText = $@"
+Path: '{request.Path}'
+RawPath: '{request.RawPath}'
+Resource: '{request.Resource}'
+HttpMethod: '{request.HttpMethod}'
+RequestContext.Path: '{request.RequestContext?.Path}'
+PathParameters: {(request.PathParameters?.Count ?? 0)} items
+Headers: {(request.Headers?.Count ?? 0)} items
+";
+
+            context.Logger.LogLine($"Request Debug: {debugText}");
 
             return new APIGatewayProxyResponse
             {
                 StatusCode = 200,
-                Body = JsonSerializer.Serialize(debugInfo, new JsonSerializerOptions { WriteIndented = true }),
+                Body = debugText,
                 Headers = new Dictionary<string, string>
                 {
-                    { "Content-Type", "application/json" },
+                    { "Content-Type", "text/plain" },
                     { "Access-Control-Allow-Origin", "*" }
                 }
             };
         }
         catch (Exception ex)
         {
-            context.Logger.LogLine($"Error: {ex}");
             return new APIGatewayProxyResponse
             {
                 StatusCode = 500,
