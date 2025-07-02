@@ -1,0 +1,6 @@
+@FidelityTesting_HostAddress = http://localhost:5075
+
+GET {{FidelityTesting_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
